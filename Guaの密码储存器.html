@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guaの密码储存器™</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            display: flex; justify-content: center; align-items: center; padding: 20px;
+        }
+        .container {
+            background: white; border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            width: 100%; max-width: 450px; padding: 30px 25px; animation: fadeIn 0.5s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        h1 { text-align: center; color: #2a5298; margin-bottom: 8px; font-size: 1.8em; }
+        .subtitle { text-align: center; color: #666; margin-bottom: 25px; font-size: 0.9em; }
+        .hidden { display: none !important; }
+        .form-group { margin-bottom: 18px; }
+        label { display: block; margin-bottom: 6px; font-weight: 600; color: #333; }
+        input[type="text"], input[type="password"] {
+            width: 100%; padding: 12px 15px; border: 2px solid #e0e0e0; border-radius: 10px;
+            font-size: 1em; transition: border-color 0.3s; outline: none;
+        }
+        input:focus { border-color: #2a5298; }
+        button {
+            width: 100%; padding: 12px; background: #2a5298; color: white; border: none;
+            border-radius: 10px; font-size: 1em; font-weight: 600; cursor: pointer;
+            transition: background 0.3s; margin-top: 5px;
+        }
+        button:hover { background: #1e3c72; }
+        button.secondary { background: #e0e0e0; color: #333; margin-top: 8px; }
+        button.secondary:hover { background: #ccc; }
+        .error-msg { color: #d32f2f; font-size: 0.85em; margin-top: 6px; }
+        .success-msg { color: #388e3c; font-size: 0.85em; margin-top: 6px; }
+        .account-list {
+            margin: 20px 0; max-height: 200px; overflow-y: auto;
+            border: 1px solid #e0e0e0; border-radius: 8px; padding: 10px;
+        }
+        .account-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 5px; border-bottom: 1px solid #f0f0f0;
+        }
+        .account-item:last-child { border-bottom: none; }
+        .account-name { font-weight: 500; }
+        .account-password {
+            font-family: monospace; color: #555; background: #f5f5f5;
+            padding: 2px 8px; border-radius: 4px;
+        }
+        .search-box { display: flex; gap: 10px; }
+        .search-box input { flex: 1; }
+        .search-box button { width: auto; padding: 12px 20px; }
+        .result-box {
+            margin-top: 15px; padding: 15px; background: #f8f9fa;
+            border-radius: 10px; border-left: 4px solid #2a5298;
+        }
+        .note { font-size: 0.8em; color: #888; margin-top: 20px; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="container" id="app">
+        <!-- 设置主密码界面 -->
+        <div id="setup-section">
+            <h1>🔐 Guaの密码储存器™</h1>
+            <p class="subtitle">首次使用，请设置主密码</p>
+            <div class="form-group">
+                <label for="new-password">主密码</label>
+                <input type="password" id="new-password" placeholder="至少4位字符" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label for="confirm-password">确认主密码</label>
+                <input type="password" id="confirm-password" placeholder="再次输入主密码" autocomplete="off">
+            </div>
+            <button id="setup-btn">设置主密码</button>
+            <div id="setup-error" class="error-msg"></div>
+        </div>
+
+        <!-- 登录界面 -->
+        <div id="login-section" class="hidden">
+            <h1>🔐 Guaの密码储存器™</h1>
+            <p class="subtitle">请输入主密码登录</p>
+            <div class="form-group">
+                <label for="login-password">主密码</label>
+                <input type="password" id="login-password" placeholder="输入主密码" autocomplete="off">
+            </div>
+            <button id="login-btn">登录</button>
+            <div id="login-error" class="error-msg"></div>
+            <div id="login-attempts" style="text-align: center; margin-top: 8px; color: #888;"></div>
+            <button id="reset-btn" class="secondary">重置主密码（清空所有数据）</button>
+        </div>
+
+        <!-- 密码管理界面 -->
+        <div id="vault-section" class="hidden">
+            <h1>🔐 Guaの密码储存器™</h1>
+            <p class="subtitle">欢迎回来，你的密码库</p>
+            
+            <div class="form-group">
+                <label for="account-name">账户名 / 程序名</label>
+                <input type="text" id="account-name" placeholder="例如：我的邮箱">
+            </div>
+            <div class="form-group">
+                <label for="account-password">密码</label>
+                <input type="password" id="account-password" placeholder="输入该账户的密码" autocomplete="off">
+            </div>
+            <button id="save-btn">💾 保存密码</button>
+            <div id="save-msg" class="success-msg"></div>
+
+            <hr style="margin: 25px 0; border: none; border-top: 1px solid #eee;">
+
+            <h3>🔍 查找密码</h3>
+            <div class="search-box">
+                <input type="text" id="search-name" placeholder="输入完整的账户名">
+                <button id="search-btn">查找</button>
+            </div>
+            <div id="search-result" class="result-box hidden"></div>
+
+            <hr style="margin: 25px 0; border: none; border-top: 1px solid #eee;">
+
+            <h3>📋 所有保存的账户</h3>
+            <div class="account-list" id="account-list">
+                <p style="color: #999; text-align: center;">暂无保存的密码</p>
+            </div>
+
+            <button id="logout-btn" class="secondary">🚪 退出登录</button>
+            <div class="note">⚠️ 数据仅保存在此浏览器中，请确保设备安全。</div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            // ========== 纯 JavaScript 实现的 SHA-256（不依赖 Web Crypto） ==========
+            function sha256Pure(message) {
+                function rightRotate(value, amount) {
+                    return (value >>> amount) | (value << (32 - amount));
+                }
+                // 预处理
+                const msgBytes = new TextEncoder().encode(message);
+                const l = msgBytes.length * 8; // 消息长度（比特）
+                // 计算填充后的字节数 (必须是64字节的倍数)
+                const k = ((448 - l - 1) % 512 + 512) % 512;
+                const paddedLength = (l + 1 + k + 64) / 8;
+                const padded = new Uint8Array(paddedLength);
+                padded.set(msgBytes);
+                padded[msgBytes.length] = 0x80;
+                // 填充长度
+                const view = new DataView(padded.buffer);
+                view.setUint32(paddedLength - 4, l >>> 0, false); // 这里只存低32位，SHA-256支持最大2^64-1位，但简化处理
+                // 初始化哈希值
+                let H = [
+                    0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+                    0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
+                ];
+                const K = [
+                    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
+                    0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+                    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
+                    0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+                    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc,
+                    0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+                    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7,
+                    0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+                    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
+                    0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+                    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3,
+                    0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+                    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5,
+                    0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+                    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
+                    0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+                ];
+                // 处理每个 512 位块
+                for (let i = 0; i < padded.length; i += 64) {
+                    const chunk = padded.slice(i, i + 64);
+                    const W = new Array(64);
+                    for (let t = 0; t < 16; t++) {
+                        W[t] = (chunk[t * 4] << 24) | (chunk[t * 4 + 1] << 16) | (chunk[t * 4 + 2] << 8) | chunk[t * 4 + 3];
+                    }
+                    for (let t = 16; t < 64; t++) {
+                        const s0 = rightRotate(W[t - 15], 7) ^ rightRotate(W[t - 15], 18) ^ (W[t - 15] >>> 3);
+                        const s1 = rightRotate(W[t - 2], 17) ^ rightRotate(W[t - 2], 19) ^ (W[t - 2] >>> 10);
+                        W[t] = (W[t - 16] + s0 + W[t - 7] + s1) >>> 0;
+                    }
+                    let a = H[0], b = H[1], c = H[2], d = H[3];
+                    let e = H[4], f = H[5], g = H[6], h = H[7];
+                    for (let t = 0; t < 64; t++) {
+                        const S1 = rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25);
+                        const ch = (e & f) ^ ((~e) & g);
+                        const temp1 = (h + S1 + ch + K[t] + W[t]) >>> 0;
+                        const S0 = rightRotate(a, 2) ^ rightRotate(a, 13) ^ rightRotate(a, 22);
+                        const maj = (a & b) ^ (a & c) ^ (b & c);
+                        const temp2 = (S0 + maj) >>> 0;
+                        h = g; g = f; f = e; e = (d + temp1) >>> 0;
+                        d = c; c = b; b = a; a = (temp1 + temp2) >>> 0;
+                    }
+                    H[0] = (H[0] + a) >>> 0; H[1] = (H[1] + b) >>> 0;
+                    H[2] = (H[2] + c) >>> 0; H[3] = (H[3] + d) >>> 0;
+                    H[4] = (H[4] + e) >>> 0; H[5] = (H[5] + f) >>> 0;
+                    H[6] = (H[6] + g) >>> 0; H[7] = (H[7] + h) >>> 0;
+                }
+                // 转换为十六进制字符串
+                return H.map(v => v.toString(16).padStart(8, '0')).join('');
+            }
+
+            // 使用我们自己的 sha256 函数（兼容所有环境）
+            async function sha256(message) {
+                // 为了保持接口一致（await），仍然返回 Promise
+                return sha256Pure(message);
+            }
+
+            // 字符串比较规则
+            function compareStrings(inputStr, storedStr) {
+                if (inputStr.length !== storedStr.length) return false;
+                for (let i = 0; i < inputStr.length; i++) {
+                    if (inputStr[i] !== storedStr[i]) return false;
+                }
+                return true;
+            }
+
+            function loadData() {
+                const masterHash = localStorage.getItem('masterPasswordHash');
+                let entries = [];
+                const entriesJson = localStorage.getItem('entries');
+                if (entriesJson) {
+                    try { entries = JSON.parse(entriesJson); } catch(e) {}
+                }
+                return { masterHash, entries };
+            }
+
+            function saveData(masterHash, entries) {
+                if (masterHash !== undefined) localStorage.setItem('masterPasswordHash', masterHash);
+                localStorage.setItem('entries', JSON.stringify(entries));
+            }
+
+            function findEntry(entries, searchName) {
+                for (let entry of entries) {
+                    if (compareStrings(searchName, entry.name)) return entry;
+                }
+                return null;
+            }
+
+            // DOM
+            const setupSection = document.getElementById('setup-section');
+            const loginSection = document.getElementById('login-section');
+            const vaultSection = document.getElementById('vault-section');
+            const newPasswordInput = document.getElementById('new-password');
+            const confirmPasswordInput = document.getElementById('confirm-password');
+            const setupBtn = document.getElementById('setup-btn');
+            const setupError = document.getElementById('setup-error');
+            const loginPasswordInput = document.getElementById('login-password');
+            const loginBtn = document.getElementById('login-btn');
+            const loginError = document.getElementById('login-error');
+            const loginAttemptsSpan = document.getElementById('login-attempts');
+            const resetBtn = document.getElementById('reset-btn');
+            const accountNameInput = document.getElementById('account-name');
+            const accountPasswordInput = document.getElementById('account-password');
+            const saveBtn = document.getElementById('save-btn');
+            const saveMsg = document.getElementById('save-msg');
+            const searchNameInput = document.getElementById('search-name');
+            const searchBtn = document.getElementById('search-btn');
+            const searchResult = document.getElementById('search-result');
+            const accountListDiv = document.getElementById('account-list');
+            const logoutBtn = document.getElementById('logout-btn');
+
+            let attemptsLeft = 3;
+            let currentEntries = [];
+
+            function renderAccountList(entries) {
+                if (!entries || entries.length === 0) {
+                    accountListDiv.innerHTML = '<p style="color: #999; text-align: center;">暂无保存的密码</p>';
+                    return;
+                }
+                let html = '';
+                entries.forEach(entry => {
+                    html += `<div class="account-item"><span class="account-name">📌 ${escapeHtml(entry.name)}</span><span class="account-password">${escapeHtml(entry.password)}</span></div>`;
+                });
+                accountListDiv.innerHTML = html;
+            }
+
+            function escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            function showSection(section) {
+                [setupSection, loginSection, vaultSection].forEach(s => s.classList.add('hidden'));
+                section.classList.remove('hidden');
+            }
+
+            async function init() {
+                const { masterHash, entries } = loadData();
+                currentEntries = entries;
+                if (!masterHash) {
+                    showSection(setupSection);
+                } else {
+                    showSection(loginSection);
+                    attemptsLeft = 3;
+                    loginAttemptsSpan.textContent = '';
+                    loginPasswordInput.value = '';
+                    loginError.textContent = '';
+                }
+            }
+
+            // 设置主密码
+            setupBtn.addEventListener('click', async () => {
+                const pwd = newPasswordInput.value;
+                const confirm = confirmPasswordInput.value;
+                setupError.textContent = '';
+                if (!pwd || !confirm) { setupError.textContent = '密码不能为空'; return; }
+                if (pwd.length < 4) { setupError.textContent = '主密码长度至少4位'; return; }
+                if (pwd !== confirm) { setupError.textContent = '两次输入不一致'; return; }
+                const hash = await sha256(pwd);
+                saveData(hash, []);
+                alert('主密码设置成功！请重新登录。');
+                showSection(loginSection);
+                attemptsLeft = 3;
+                loginAttemptsSpan.textContent = '';
+            });
+
+            // 登录
+            loginBtn.addEventListener('click', async () => {
+                const pwd = loginPasswordInput.value;
+                loginError.textContent = '';
+                if (!pwd) { loginError.textContent = '请输入主密码'; return; }
+                const { masterHash } = loadData();
+                const hash = await sha256(pwd);
+                if (hash === masterHash) {
+                    const { entries } = loadData();
+                    currentEntries = entries;
+                    renderAccountList(currentEntries);
+                    showSection(vaultSection);
+                    searchNameInput.value = '';
+                    searchResult.classList.add('hidden');
+                    saveMsg.textContent = '';
+                    accountNameInput.value = '';
+                    accountPasswordInput.value = '';
+                } else {
+                    attemptsLeft--;
+                    if (attemptsLeft <= 0) {
+                        loginError.textContent = '密码错误次数过多，程序锁定。请刷新页面重试。';
+                        loginBtn.disabled = true;
+                        loginPasswordInput.disabled = true;
+                    } else {
+                        loginError.textContent = `密码错误，还剩 ${attemptsLeft} 次机会`;
+                        loginAttemptsSpan.textContent = `剩余尝试次数：${attemptsLeft}`;
+                        loginPasswordInput.value = '';
+                        loginPasswordInput.focus();
+                    }
+                }
+            });
+
+            loginPasswordInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') loginBtn.click();
+            });
+
+            resetBtn.addEventListener('click', () => {
+                if (confirm('确定要重置主密码吗？所有保存的密码将被永久删除！')) {
+                    localStorage.clear();
+                    showSection(setupSection);
+                    newPasswordInput.value = '';
+                    confirmPasswordInput.value = '';
+                    setupError.textContent = '';
+                }
+            });
+
+            saveBtn.addEventListener('click', () => {
+                const name = accountNameInput.value.trim();
+                const pwd = accountPasswordInput.value;
+                saveMsg.textContent = '';
+                if (!name) { saveMsg.textContent = '账户名不能为空'; saveMsg.style.color = '#d32f2f'; return; }
+                if (!pwd) { saveMsg.textContent = '密码不能为空'; saveMsg.style.color = '#d32f2f'; return; }
+                const existing = findEntry(currentEntries, name);
+                if (existing) {
+                    if (!confirm(`账户名 "${name}" 已存在，是否覆盖？`)) {
+                        saveMsg.textContent = '已取消保存'; saveMsg.style.color = '#888'; return;
+                    }
+                    currentEntries = currentEntries.filter(e => e.name !== name);
+                }
+                currentEntries.push({ name, password: pwd });
+                const { masterHash } = loadData();
+                saveData(masterHash, currentEntries);
+                renderAccountList(currentEntries);
+                accountNameInput.value = '';
+                accountPasswordInput.value = '';
+                saveMsg.textContent = '✅ 保存成功！'; saveMsg.style.color = '#388e3c';
+                setTimeout(() => { saveMsg.textContent = ''; }, 3000);
+            });
+
+            searchBtn.addEventListener('click', () => {
+                const searchName = searchNameInput.value.trim();
+                searchResult.classList.add('hidden');
+                if (!searchName) {
+                    searchResult.innerHTML = '<p style="color: #d32f2f;">请输入要查找的账户名</p>';
+                    searchResult.classList.remove('hidden');
+                    return;
+                }
+                const entry = findEntry(currentEntries, searchName);
+                if (entry) {
+                    searchResult.innerHTML = `<strong>✅ 找到匹配项</strong><br>账户名：${escapeHtml(entry.name)}<br>密码：<span style="font-family: monospace; background: #fff; padding: 2px 8px; border-radius: 4px;">${escapeHtml(entry.password)}</span>`;
+                } else {
+                    searchResult.innerHTML = '<p style="color: #888;">❌ 未找到匹配的账户</p>';
+                }
+                searchResult.classList.remove('hidden');
+            });
+
+            searchNameInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') searchBtn.click();
+            });
+
+            logoutBtn.addEventListener('click', () => {
+                showSection(loginSection);
+                loginPasswordInput.value = '';
+                loginError.textContent = '';
+                attemptsLeft = 3;
+                loginAttemptsSpan.textContent = '';
+                loginBtn.disabled = false;
+                loginPasswordInput.disabled = false;
+            });
+
+            init();
+        })();
+    </script>
+</body>
+</html>
